@@ -53,6 +53,21 @@ public class Patient {
      */
     public List<PatientRecord> getRecords(long startTime, long endTime) {
         // TODO Implement and test this method
-        return null;
+        List<PatientRecord> records = new ArrayList<>();
+        for (PatientRecord record : patientRecords) {
+            if (record.getTimestamp() >= startTime && record.getTimestamp() <= endTime) {
+                records.add(record);
+            }
+        }
+        return records;
+        //This returns the filtered records that fall within the specified time range.
+    }
+
+    /**
+     * Here I made a new method to get a patientsID to be used in the AlertGenerator class
+     * @return the patients ID
+     */
+    public String getPatientId() {
+        return Integer.toString(patientId);
     }
 }
