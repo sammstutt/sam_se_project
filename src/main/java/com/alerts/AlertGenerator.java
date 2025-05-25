@@ -5,7 +5,9 @@ import com.data_management.Patient;
 import com.data_management.PatientRecord;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The {@code AlertGenerator} class is responsible for monitoring patient data
@@ -15,18 +17,28 @@ import java.util.List;
  */
 public class AlertGenerator {
     private DataStorage dataStorage;
+    private final Map<String, AlertStrategy> alertStrategies = new HashMap<>(); // strategies
+    private final Map<String, AlertFactory> alertFactories = new HashMap<>(); // factories
 
-    /**
-     * Constructs an {@code AlertGenerator} with a specified {@code DataStorage}.
-     * The {@code DataStorage} is used to retrieve patient data that this class
-     * will monitor and evaluate.
-     *
-     * @param dataStorage the data storage system that provides access to patient
-     *                    data
-     */
     public AlertGenerator(DataStorage dataStorage) {
         this.dataStorage = dataStorage;
+
+        // Initialize the strategies in the hashmap
+        alertStrategies.put("SystolicPressure", new BloodPressureStrategy());
+        alertStrategies.put("DiastolicPressure", new BloodPressureStrategy());
+        alertStrategies.put("BloodSaturation", new OxygenSaturationStrategy());
+        alertStrategies.put("ECG", new HeartRateStrategy());
+        alertStrategies.put("Manual", new ManualStrategy());
+
+        // Initialize the factories in the hasmap
+        alertFactories.put("SystolicPressure", new BloodPressureAlertFactory());
+        alertFactories.put("DiastolicPressure", new BloodPressureAlertFactory());
+        alertFactories.put("BloodSaturation", new BloodOxygenAlertFactory());
+        alertFactories.put("ECG", new ECGAlertFactory());
+        alertFactories.put("Manual", new ManualAlertFactory());
     }
+
+
 
     /**
      * Evaluates the specified patient's data to determine if any alert conditions
@@ -38,6 +50,8 @@ public class AlertGenerator {
      *
      * @param patient the patient data to evaluate for alert conditions
      */
+
+    /*
     public void evaluateData(Patient patient) {
         // Implementation goes here
         // Retrieve recent records
@@ -74,16 +88,16 @@ public class AlertGenerator {
                 // Critical threshold checks
                 // NOTE: I made a getPatientId() method in the patient class
                 if (first > 180 || first < 90 || second > 180 || second < 90  || third > 180 || third < 90) {
-                    triggerAlert(new Alert(patient.getPatientId(),
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId(),
                             "SystolicPressure exceeded critical thresholds: ",
-                            System.currentTimeMillis()));
+                            System.currentTimeMillis());
                 }
 
                 //Trend checks
                 if (third >= second + 10 && second >= first + 10)
-                    triggerAlert(new Alert(patient.getPatientId(), "SystolicPressure shows consistent increase", System.currentTimeMillis()));
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId(), "SystolicPressure shows consistent increase", System.currentTimeMillis());
                 if (third <= second - 10 && second <= first - 10)
-                    triggerAlert(new Alert(patient.getPatientId(), "SystolicPressure shows consistent decrease", System.currentTimeMillis()));
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId(), "SystolicPressure shows consistent decrease", System.currentTimeMillis());
             }
         }
 
@@ -96,16 +110,16 @@ public class AlertGenerator {
 
                 // critical threshold checks
                 if (third > 120 || third < 60) {
-                    triggerAlert(new Alert(patient.getPatientId(),
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId(),
                             "DiastolicPressure exceeded critical thresholds: ",
-                            System.currentTimeMillis()));
+                            System.currentTimeMillis());
                 }
 
                 //Trend checks
                 if (third >= second + 10 && second >= first + 10)
-                    triggerAlert(new Alert(patient.getPatientId(), "DiastolicPressure shows consistent increase", System.currentTimeMillis()));
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId() ,"DiastolicPressure shows consistent increase", System.currentTimeMillis());
                 if (third <= second - 10 && second <= first - 10)
-                    triggerAlert(new Alert(patient.getPatientId(), "DiastolicPressure shows consistent decrease", System.currentTimeMillis()));
+                    triggerAlertWithFactory(new BloodPressureAlertFactory(), patient.getPatientId(), "DiastolicPressure shows consistent decrease", System.currentTimeMillis());
             }
         }
         //---------------------------------------------------------------------------------------------------------//
@@ -187,9 +201,38 @@ public class AlertGenerator {
                 }
             }
         }
+    }*/
+
+    public void evaluateData(Patient patient) {
+        // gets records from the last 24 hours
+        List<PatientRecord> records = patient.getRecords(System.currentTimeMillis() - 86400000L, System.currentTimeMillis());
+
+        if (records == null || records.isEmpty()) return; // there is nothingto evaluate
+
+        for (PatientRecord record : records) {
+            String recordType = record.getRecordType();
+
+            // this matches the correct strategy and factory for the record type
+            AlertStrategy strategy = alertStrategies.get(recordType);
+            AlertFactory factory = alertFactories.get(recordType);
+
+            if (strategy != null && factory != null) {
+                // the strategy checks if there condition has been met to trigger an alert
+                boolean isAlertTriggered = strategy.checkAlert(record, records);
+
+                if (isAlertTriggered) {
+                    // the factory will then create the alert
+                    Alert alert = factory.createAlert(String.valueOf(patient.getPatientId()), "Condition: " + recordType, record.getTimestamp());
+
+                    // teh alert is then triggered
+                    triggerAlert(alert);
+                }
+            }
+        }
     }
 
-
+    // Add a field to store triggered alerts
+    private final List<Alert> triggeredAlerts = new ArrayList<>();
 
     /**
      * Triggers an alert for the monitoring system. This method can be extended to
@@ -200,11 +243,20 @@ public class AlertGenerator {
      * @param alert the alert object containing details about the alert condition
      */
     private void triggerAlert (Alert alert){
+        triggeredAlerts.add(alert);
         System.out.println("\nALERT TRIGGERED");
         System.out.println("Patient ID: " + alert.getPatientId());
         System.out.println("Condition: " + alert.getCondition());
         System.out.println("Timestamp: " + alert.getTimestamp());
     }
+
+
+    // Provide a method to access triggered alerts
+    public List<Alert> getTriggeredAlerts() {
+
+        return triggeredAlerts;
+    }
+
 
 }
 

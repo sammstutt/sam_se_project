@@ -33,7 +33,7 @@ public class HealthDataSimulator {
     private static ScheduledExecutorService scheduler;
     private static OutputStrategy outputStrategy = new ConsoleOutputStrategy(); // Default output strategy
     private static final Random random = new Random();
-
+    private static final HealthDataSimulator instance = new HealthDataSimulator(); // Singleton instance
 
     /**
      * Main method that starts the health data simulation
@@ -51,6 +51,11 @@ public class HealthDataSimulator {
         Collections.shuffle(patientIds); // Randomize the order of patient IDs
 
         scheduleTasksForPatients(patientIds);
+    }
+
+
+    public static HealthDataSimulator getInstance() {
+        return instance;
     }
 
     /**
